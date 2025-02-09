@@ -66,8 +66,7 @@ describe("PrettyLogs", () => {
     expect(logReturn).toBeUndefined();
     const cleanLogStrings = cleanSpyLogs(logSpy);
     expect(cleanLogStrings).toEqual([
-      cleanLogString(" ›› This is a METADATA message"),
-      cleanLogString(` ›› ${JSON.stringify({ thisIsMetadata: true, stuff: ["stuff", "stuff", "stuff", "stuff", "stuff"], moreStuff: { a: "a", b: "b" } })}`),
+      cleanLogString(` ›› This is a METADATA message${JSON.stringify({ thisIsMetadata: true, stuff: Array(5).fill("stuff"), moreStuff: { a: "a", b: "b" } })}`),
     ]);
   });
 
@@ -76,7 +75,7 @@ describe("PrettyLogs", () => {
     const logReturn = logs.debug("This is a METADATA message", "This is metadata as a string");
     expect(logReturn).toBeUndefined();
     const cleanLogStrings = cleanSpyLogs(logSpy);
-    expect(cleanLogStrings).toEqual([cleanLogString(" ›› This is a METADATA message"), cleanLogString(" ›› This is metadata as a string")]);
+    expect(cleanLogStrings).toEqual([cleanLogString(` ›› This is a METADATA message This is metadata as a string`)]);
   });
 
   it("should log an error and stack", () => {
@@ -84,13 +83,10 @@ describe("PrettyLogs", () => {
     const logReturn = logs.debug("This is a METADATA message", { error: tryError() });
     expect(logReturn).toBeUndefined();
     const cleanLogStrings = cleanSpyLogs(logSpy);
-
-    const errorRegex = /↳tryError\(.+\)↳Object.<anonymous>\(/;
-
-    expect(cleanLogStrings).toEqual([
-      cleanLogString(" ›› This is a METADATA message"),
-      cleanLogString(` ›› ${JSON.stringify({ error: {} })}`),
-      expect.stringMatching(errorRegex),
-    ]);
+    expect(cleanLogStrings).toHaveLength(1);
+    expect(cleanLogStrings[0]).toContain("ThisisaMETADATAmessage");
+    expect(cleanLogStrings[0]).toContain(`"error":{}`);
+    const errorRegex = /tryError\(.*?\)↳Object\.<anonymous>\(/;
+    expect(cleanLogStrings[0]).toMatch(errorRegex);
   });
 });

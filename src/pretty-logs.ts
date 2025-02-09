@@ -1,5 +1,14 @@
 import { LOG_LEVEL, COLORS } from "./constants";
 import { Metadata, LogLevelWithOk, Colors } from "./types/log-types";
+const colorMap: Record<LogLevelWithOk, [keyof typeof console, Colors]> = {
+  fatal: ["error", COLORS.fgRed],
+  ok: ["log", COLORS.fgGreen],
+  warn: ["warn", COLORS.fgYellow],
+  error: ["warn", COLORS.fgYellow],
+  info: ["info", COLORS.dim],
+  debug: ["debug", COLORS.fgMagenta],
+  verbose: ["debug", COLORS.dim],
+};
 
 export class PrettyLogs {
   constructor() {
@@ -11,6 +20,7 @@ export class PrettyLogs {
     this.debug = this.debug.bind(this);
     this.verbose = this.verbose.bind(this);
   }
+  private _finalLogString: string = "";
   public fatal(message: string, metadata?: Metadata | string | unknown) {
     this._logWithStack(LOG_LEVEL.FATAL, message, metadata);
   }
@@ -40,9 +50,12 @@ export class PrettyLogs {
   }
 
   private _logWithStack(type: LogLevelWithOk, message: string, metaData?: Metadata | string | unknown) {
-    this._log(type, message);
+    const _console = console[colorMap[type][0] as keyof typeof console] as (...args: string[]) => void;
+    this._finalLogString = "";
+    this._log(type, message, true);
     if (typeof metaData === "string") {
       this._log(type, metaData);
+      _console(this._finalLogString);
       return;
     }
     if (metaData) {
@@ -74,9 +87,11 @@ export class PrettyLogs {
         const colorizedStack = this._colorizeText(prettyStack, COLORS.dim);
         this._log(type, colorizedStack);
       } else {
+        _console(this._finalLogString);
         throw new Error("Stack is null");
       }
     }
+    _console(this._finalLogString);
   }
 
   private _colorizeText(text: string, color: Colors): string {
@@ -100,7 +115,7 @@ export class PrettyLogs {
     return !Reflect.ownKeys(obj).some((key) => typeof obj[String(key)] !== "function");
   }
 
-  private _log(type: LogLevelWithOk, message: string | Record<string, unknown>) {
+  private _log(type: LogLevelWithOk, message: string | Record<string, unknown>, addSymbol: boolean = false) {
     const defaultSymbols: Record<LogLevelWithOk, string> = {
       fatal: "×",
       ok: "✓",
@@ -120,30 +135,21 @@ export class PrettyLogs {
     const logString = lines
       .map((line, index) => {
         // Add the symbol only to the first line and keep the indentation for the rest
-        const prefix = index === 0 ? `\t${symbol}` : `\t${" ".repeat(symbol.length)}`;
+        const prefix = index === 0 && addSymbol ? `\t${symbol}` : `\t${" ".repeat(symbol.length)}`;
         return `${prefix} ${line}`;
       })
       .join("\n");
 
     const fullLogString = logString;
 
-    const colorMap: Record<LogLevelWithOk, [keyof typeof console, Colors]> = {
-      fatal: ["error", COLORS.fgRed],
-      ok: ["log", COLORS.fgGreen],
-      warn: ["warn", COLORS.fgYellow],
-      error: ["warn", COLORS.fgYellow],
-      info: ["info", COLORS.dim],
-      debug: ["debug", COLORS.fgMagenta],
-      verbose: ["debug", COLORS.dim],
-    };
-
     const _console = console[colorMap[type][0] as keyof typeof console] as (...args: string[]) => void;
     if (typeof _console === "function" && fullLogString.length > 12) {
-      _console(this._colorizeText(fullLogString, colorMap[type][1]));
+      this._finalLogString += fullLogString + "\n";
     } else if (fullLogString.length <= 12) {
       // removing empty logs which only contain the symbol
       return;
     } else {
+      _console(this._finalLogString);
       throw new Error(fullLogString);
     }
   }
